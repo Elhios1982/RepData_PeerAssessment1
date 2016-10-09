@@ -5,21 +5,85 @@ output:
     keep_md: true
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list = ls())
+library(dplyr)
+library(lubridate)
+library(stringr)
+setwd("C:/coursera/RepData_PeerAssessment1")
+```
 
 ## Loading and preprocessing the data
+```{r}
+df <- tbl_df(read.table(unz("activity.zip", "activity.csv"), header = T, quote="\"", sep = ",", na.strings = "NA", colClasses = "character"))
+df <- df %>%
+      mutate(steps = as.integer(steps)) %>%
+      mutate(date = ymd(date)) %>%
+      mutate(interval = str_pad(df$interval, 4, pad = "0"))
+```
 
 
 
 ## What is mean total number of steps taken per day?
+```{r}
+## Histogram of total number of steps taken each day
+df.complete.cases <- df[complete.cases(df),]
+df.total.steps <- aggregate(steps ~ date, data = df.complete.cases, FUN = sum)
+hist(df.total.steps$steps)
+
+## Mean and Median total number of steps per day
+print(summarize(group_by(df.complete.cases, date), Mean = mean(steps), Median = median(steps) ), n=53)
+
+```
 
 
 
 ## What is the average daily activity pattern?
+```{r}
+## Plot average steps taken per day interval
+df.mean.by.interval <- summarize( group_by(df.complete.cases, interval), Mean = mean(steps) )
+plot(df.mean.by.interval$interval, df.mean.by.interval$Mean, type = "l", xlab = "Interval", main = "Daily Activity Pattern", ylab = "Average number of steps" )
+
+## Max number of steps per day interval
+max(df.mean.by.interval$Mean)
+
+```
 
 
 
 ## Imputing missing values
+```{r}
+## calculate and report the total number of missing values in the dataset
+sum( complete.cases(df) == "FALSE" )
 
 
+## Devise a strategy for filling missing values
+df.clean <- df %>%
+  mutate( steps = ifelse( is.na(steps), 1, steps) )
+
+df.total.steps2 <- aggregate(steps ~ date, data = df.clean, FUN = sum, na.rm = FALSE)
+hist(df.total.steps2$steps)
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+## Mean and Median total number of steps per day
+print(summarize(group_by(df.clean, date), Mean = mean(steps), Median = median(steps) ), n=100)
+
+## Create a new factor variable in the data set
+df.clean$weekdays<-weekdays(df.clean$date)
+df.clean$factor<- as.factor(c("weekend", "weekday"))
+df.clean[df.clean$weekdays == "Sunday" | df.clean$weekdays == "Saturday" ,5]<- factor("weekend")
+df.clean[!(df.clean$weekdays == "Sunday" | df.clean$weekdays == "Saturday"),5 ]<- factor("weekday")
+
+## Create a panel plot containing a time series
+df.clean.weekday <- subset(df.clean, factor == "weekday")
+df.clean.weekend <- subset(df.clean, factor == "weekend")
+steps.mean.weekday <- tapply(df.clean.weekday$steps, df.clean.weekday$interval, mean)
+steps.mean.weekend <- tapply(df.clean.weekend$steps, df.clean.weekend$interval, mean)
+par(mfrow=c(2,1), mar = c(5, 4, 1, 1))
+plot(y = steps.mean.weekday, x = names(steps.mean.weekday), type = "l", xlab = "Interval", main = "Weekday Activity Pattern", ylab = "Average number of steps", ylim=c(0,220))
+plot(y = steps.mean.weekend, x = names(steps.mean.weekend), type = "l", xlab = "Interval", main = "Weekend Activity Pattern", ylab = "Average number of steps", ylim = c(0,220))
+```
+

@@ -2,7 +2,7 @@ rm(list = ls())
 library(dplyr)
 library(lubridate)
 library(stringr)
-setwd("C:/coursera/data-science/RepData_PeerAssessment1")
+setwd("C:/coursera/RepData_PeerAssessment1")
 ## Loading and preprocessing the data
 df <- tbl_df(read.table(unz("activity.zip", "activity.csv"), header = T, quote="\"", sep = ",", na.strings = "NA", colClasses = "character"))
 df <- df %>%
@@ -31,14 +31,26 @@ sum( complete.cases(df) == "FALSE" )
 
 
 ## Devise a strategy for filling missing values
-df.mean.by.interval
+df.clean <- df %>%
+  mutate( steps = ifelse( is.na(steps), 1, steps) )
 
+df.total.steps2 <- aggregate(steps ~ date, data = df.clean, FUN = sum, na.rm = FALSE)
+hist(df.total.steps2$steps)
 
+## Mean and Median total number of steps per day
+print(summarize(group_by(df.clean, date), Mean = mean(steps), Median = median(steps) ), n=100)
 
+## Create a new factor variable in the data set
+df.clean$weekdays<-weekdays(df.clean$date)
+df.clean$factor<- as.factor(c("weekend", "weekday"))
+df.clean[df.clean$weekdays == "Sunday" | df.clean$weekdays == "Saturday" ,5]<- factor("weekend")
+df.clean[!(df.clean$weekdays == "Sunday" | df.clean$weekdays == "Saturday"),5 ]<- factor("weekday")
 
-
-
-
-
-
-
+## Create a panel plot containing a time series
+df.clean.weekday <- subset(df.clean, factor == "weekday")
+df.clean.weekend <- subset(df.clean, factor == "weekend")
+steps.mean.weekday <- tapply(df.clean.weekday$steps, df.clean.weekday$interval, mean)
+steps.mean.weekend <- tapply(df.clean.weekend$steps, df.clean.weekend$interval, mean)
+par(mfrow=c(2,1), mar = c(5, 4, 1, 1))
+plot(y = steps.mean.weekday, x = names(steps.mean.weekday), type = "l", xlab = "Interval", main = "Weekday Activity Pattern", ylab = "Average number of steps", ylim=c(0,220))
+plot(y = steps.mean.weekend, x = names(steps.mean.weekend), type = "l", xlab = "Interval", main = "Weekend Activity Pattern", ylab = "Average number of steps", ylim = c(0,220))
